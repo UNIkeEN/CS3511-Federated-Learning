@@ -8,7 +8,7 @@ class MLP(nn.Module):
         self.relu = nn.ReLU()
         self.fc2 = nn.Linear(256, 128)
         self.fc3 = nn.Linear(128, output_channel)
-        self.softmax = nn.Softmax(dim=0)
+        # self.softmax = nn.Softmax(dim=0)
 
     def forward(self, x):
         x = self.flatten(x)
@@ -17,5 +17,5 @@ class MLP(nn.Module):
         x = self.fc2(x)
         x = self.relu(x)
         x = self.fc3(x)
-        x = self.softmax(x)
+        # x = self.softmax(x)
         return x

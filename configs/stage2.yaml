@@ -11,6 +11,9 @@ update_mode: partial
 
 device: cuda
 
+# model (MLP/LeNet)
+model: MLP
+
 # client params
 n_clients: 20
 n_update_clients: 10  # M
@@ -19,6 +22,6 @@ n_update_clients: 10  # M
 input_size: 28
 output_channel: 8
 batch_size: 32
-n_rounds: 40
-n_epochs: 30
+n_rounds: 20
+n_epochs: 20
 lr: 0.01

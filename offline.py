@@ -5,14 +5,18 @@ import copy
 import os
 import numpy as np
 from tqdm import tqdm
-from models.MLP import MLP
+import models
 from dataset import Dataset
+from utils import *
 
 class OfflinePipeline():
     def __init__(self, cfg):
         self.device = cfg.device
         self.client_ckp_dir = cfg.client_ckp_dir
         self.global_ckp_dir = cfg.global_ckp_dir
+        check_directory(self.client_ckp_dir)
+        check_directory(self.global_ckp_dir)
+
         self.mode = cfg.update_mode
 
         self.N = cfg.n_clients
@@ -21,7 +25,9 @@ class OfflinePipeline():
 
         self.input_size = cfg.input_size
         self.output_channel = cfg.output_channel
-        self.model = MLP(self.input_size, self.output_channel).to(self.device)
+        self.model = models.models_dict[cfg.model](
+            self.input_size, self.output_channel
+        ).to(self.device)
         self.global_model = copy.deepcopy(self.model)
         self.batch_size = cfg.batch_size
         self.n_rounds = cfg.n_rounds
