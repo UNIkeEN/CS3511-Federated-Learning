@@ -1,6 +1,6 @@
 import argparse
 from omegaconf import OmegaConf
-from offline import OfflinePipeline
+from pipeline import OfflinePipeline
 
 if __name__ == "__main__":
 
