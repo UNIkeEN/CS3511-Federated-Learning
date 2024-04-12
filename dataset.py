@@ -6,17 +6,21 @@ class Dataset():
     def __init__(
         self,
         data_dir,
-        n_clients
+        n_clients,
+        load_train = True,
+        load_test = True
     ):
         # load train data
         self.train_data = []
-        for i in range(n_clients):
-            with open(os.path.join(data_dir, f"Client{i+1}.pkl"), "rb") as f:
-                self.train_data.append(dill.load(f))
+        if load_train:
+            for i in range(n_clients):
+                with open(os.path.join(data_dir, f"Client{i+1}.pkl"), "rb") as f:
+                    self.train_data.append(dill.load(f))
 
         # load test data
-        with open(os.path.join(data_dir, "Test.pkl"), "rb") as f:
-            self.test_data = dill.load(f)
+        if load_test:
+            with open(os.path.join(data_dir, "Test.pkl"), "rb") as f:
+                self.test_data = dill.load(f)
 
     def get_test_dataloader(self, batch_size):
         return DataLoader(

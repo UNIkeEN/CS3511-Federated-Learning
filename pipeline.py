@@ -5,11 +5,12 @@ import copy
 import os
 import numpy as np
 from tqdm import tqdm
+from abc import ABC, abstractmethod
 import models
 from dataset import Dataset
-from utils import *
+from utils import check_directory
 
-class Pipeline():
+class Pipeline(ABC):
     def __init__(self, cfg):
         self.device = cfg.device
         self.client_ckp_dir = cfg.client_ckp_dir
@@ -32,18 +33,22 @@ class Pipeline():
         self.n_rounds = cfg.n_rounds
         self.n_epochs = cfg.n_epochs
         self.lr = cfg.lr
+
+        self.test_dataloader = None # subclass need to assign it.
     
+    @abstractmethod
     def send_and_train(self, idx, global_state):
         """
         send global model's state to client_{id} and start training at client.
         """
-        pass
-
+        raise NotImplementedError
+    
+    @abstractmethod
     def recv_and_merge(self, idx):
         """
         receive client models' state and do aggregation
         """
-        pass
+        raise NotImplementedError
     
     def train(self):
         best_acc = 0
