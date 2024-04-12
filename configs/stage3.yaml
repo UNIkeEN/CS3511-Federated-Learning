@@ -1,0 +1,32 @@
+# running mode (offline for stage 1-2, online for stage 3)
+mode: online
+
+# dataset and checkpoint
+data_dir: ./dataset/Data_BloodMNIST/
+client_ckp_dir: ./checkpoints/client/
+global_ckp_dir: ./checkpoints/global/
+
+# update all client each iter or partially.
+update_mode: partial
+
+device: cuda
+
+# model (MLP/LeNet)
+model: MLP
+
+# client params
+n_clients: 20
+n_update_clients: 10  # M
+
+# training params
+input_size: 28
+output_channel: 8
+batch_size: 32
+n_rounds: 100
+n_epochs: 50
+lr: 0.003
+
+# online params
+port: 23333
+server_address: localhost
+buffer_size: 2048
