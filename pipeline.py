@@ -6,9 +6,14 @@ import os
 import numpy as np
 from tqdm import tqdm
 from abc import ABC, abstractmethod
+import subprocess
+import socket
+import threading
+import io
+
 import models
 from dataset import Dataset
-from utils import check_directory
+from utils import check_directory, receive_data
 
 class Pipeline(ABC):
     def __init__(self, cfg):
@@ -115,6 +120,108 @@ class OfflinePipeline(Pipeline):
             avg_param.data /= self.M
         
         return avg_model
+    
+class OnlinePipeline(Pipeline):
+    def __init__(self, cfg, config_path):
+        super().__init__(cfg)
+        self.dataset = Dataset(cfg.data_dir, self.N, load_train=False)
+        self.test_dataloader = self.dataset.get_test_dataloader(self.batch_size)
+        
+        self.port = cfg.port
+        self.server_address = cfg.server_address
+        self.buffer_size = cfg.buffer_size
+
+        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server_socket.bind((self.server_address, self.port))
+        self.server_socket.listen(self.N)
+
+        # start client process
+        for i in range(self.N):
+            subprocess.Popen(["python", "client.py", str(i+1), str(config_path)])
+            # command = f'start cmd.exe /k python client.py {i+1} {config_path}'
+            # subprocess.Popen(command, shell=True)
+            print(f"Client {i+1} started")
+        
+        # connect client
+        self.client_sockets = []
+        self.lock = threading.Lock()
+        for _ in range(self.N):
+            client_socket, addr = self.server_socket.accept()
+            self.client_sockets.append(client_socket)
+            print(f"Connected to client at {addr}")
+
+    def send_and_train(self, idx, global_state):
+        threads = []
+        # import time
+        for i in idx:
+            # time.sleep(1)
+            thread = threading.Thread(target=self._send_model, args=(self.client_sockets[i], global_state, i))
+            threads.append(thread)
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+    def _send_model(self, client_socket, global_state, i):
+        try:
+            buffer = io.BytesIO()
+            torch.save(global_state, buffer)
+            buffer.seek(0)
+            client_socket.sendall(buffer.getvalue())
+            client_socket.sendall(b"END")
+            print(f"Send model to client {i}")
+        except socket.error as e:
+            print("Socket error during sending model:", e)
+
+    def recv_and_merge(self, idx):
+        threads = []
+        self.avg_model = copy.deepcopy(self.model)
+
+        for i in idx:
+            thread = threading.Thread(target=self._recv_model, args=(self.client_sockets[i], i, idx))
+            threads.append(thread)
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        for avg_param in self.avg_model.parameters():
+            avg_param.data /= self.M
+        
+        return self.avg_model
+
+    def _recv_model(self, client_socket, i, idx):
+        try:
+            data = receive_data(client_socket, self.buffer_size)
+            if data is None:
+                print("Socket error during receiving client model")
+            
+            buffer = io.BytesIO(data)
+            buffer.seek(0)
+            client_model_state = torch.load(buffer)
+
+            client_model = copy.deepcopy(self.model)
+            client_model.load_state_dict(client_model_state)
+            save_path = os.path.join(self.client_ckp_dir, f"{i+1}.pth")
+            torch.save(client_model.state_dict(), save_path)
+            with self.lock:
+                for avg_param, client_param in zip(self.avg_model.parameters(), client_model.parameters()):
+                    if i == idx[0]:
+                        avg_param.data = client_param.data
+                    else:
+                        avg_param.data += client_param.data
+            print(f"Recv model from client {i}")
+        except socket.error as e:
+            print("Socket error during receiving client model:", e)
+    
+    def train(self):
+        super().train()
+
+        # send end msg to client
+        for client_socket in self.client_sockets:
+            try:
+                client_socket.sendall(b"FIN")
+                client_socket.close()
+            except socket.error as e:
+                print(f"Error sending end signal: {e}")
     
 def atom_train(model, lr, dataloader, n_epochs, device):
     """

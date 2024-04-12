@@ -1,6 +1,6 @@
 import argparse
 from omegaconf import OmegaConf
-from pipeline import OfflinePipeline
+from pipeline import OfflinePipeline, OnlinePipeline
 
 if __name__ == "__main__":
 
@@ -15,4 +15,5 @@ if __name__ == "__main__":
         pipe.train()
 
     if cfg.mode == "online":
-        pass
+        pipe = OnlinePipeline(cfg, args.config)
+        pipe.train()
