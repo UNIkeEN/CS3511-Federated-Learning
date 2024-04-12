@@ -175,6 +175,8 @@ class OnlinePipeline(Pipeline):
     def recv_and_merge(self, idx):
         threads = []
         self.avg_model = copy.deepcopy(self.model)
+        for avg_param in self.avg_model.parameters():
+            avg_param.data.zero_()
 
         for i in idx:
             thread = threading.Thread(target=self._recv_model, args=(self.client_sockets[i], i, idx))
@@ -204,10 +206,7 @@ class OnlinePipeline(Pipeline):
             torch.save(client_model.state_dict(), save_path)
             with self.lock:
                 for avg_param, client_param in zip(self.avg_model.parameters(), client_model.parameters()):
-                    if i == idx[0]:
-                        avg_param.data = client_param.data
-                    else:
-                        avg_param.data += client_param.data
+                    avg_param.data += client_param.data
             print(f"Recv model from client {i}")
         except socket.error as e:
             print("Socket error during receiving client model:", e)
