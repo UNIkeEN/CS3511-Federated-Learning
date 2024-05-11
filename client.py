@@ -6,6 +6,8 @@ import dill
 import torch
 from torch.utils.data import DataLoader
 from omegaconf import OmegaConf
+import logging
+from datetime import datetime
 
 import models
 from pipeline import atom_train
@@ -24,15 +26,26 @@ def client_process(client_id, cfg):
     client_socket.connect((cfg.server_address, int(cfg.port)))
     client_model = models.models_dict[cfg.model](cfg.input_size, cfg.output_channel).to(cfg.device)
 
+    if not os.path.exists(cfg.log_dir):
+        os.makedirs(cfg.log_dir)
+    log_path = os.path.join(cfg.log_dir, f"client_{client_id}_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".log")
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format = '%(asctime)s [%(levelname)s] %(message)s',
+        handlers = [
+            logging.FileHandler(log_path), 
+            logging.StreamHandler()
+        ])
+
     while True:
         try:
             # recv global state
             data = receive_data(client_socket, cfg.buffer_size)
             if data == b"FIN":
-                print(f"Received end signal. Closing client {client_id}.")
+                logging.info(f"Received end signal. Closing client {client_id}.")
                 break
             elif data is None:
-                print(f"No data received, connection may be closed. Closing client {client_id}.")
+                logging.error(f"No data received, connection may be closed. Closing client {client_id}.")
                 break
             
             buffer = io.BytesIO(data)
@@ -49,7 +62,7 @@ def client_process(client_id, cfg):
             client_socket.sendall(buffer.getvalue())
             client_socket.sendall(b"END")
         except socket.error as e:
-            print(f"Socket error for client {client_id}: ", e)
+            logging.error(f"Socket error for client {client_id}: ", e)
             break
 
     client_socket.close()

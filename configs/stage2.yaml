@@ -1,10 +1,11 @@
 # running mode (offline for stage 1-2, online for stage 3)
 mode: offline
 
-# dataset and checkpoint
+# dataset, checkpoints and logs
 data_dir: ./dataset/Data_BloodMNIST/
 client_ckp_dir: ./checkpoints/client/
 global_ckp_dir: ./checkpoints/global/
+log_dir: ./logs/
 
 # update all client each iter or partially.
 update_mode: partial

@@ -10,6 +10,8 @@ import subprocess
 import socket
 import threading
 import io
+import logging
+from datetime import datetime
 
 import models
 from dataset import Dataset
@@ -22,6 +24,17 @@ class Pipeline(ABC):
         self.global_ckp_dir = cfg.global_ckp_dir
         check_directory(self.client_ckp_dir)
         check_directory(self.global_ckp_dir)
+
+        if not os.path.exists(cfg.log_dir):
+            os.makedirs(cfg.log_dir)
+        self.log_path = os.path.join(cfg.log_dir, datetime.now().strftime("%Y%m%d_%H%M%S") + ".log")
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format = '%(asctime)s [%(levelname)s] %(message)s',
+            handlers = [
+                logging.FileHandler(self.log_path), 
+                logging.StreamHandler()
+            ])
 
         self.mode = cfg.update_mode
 
@@ -78,7 +91,7 @@ class Pipeline(ABC):
             # test model of this round, save if it's better
             self.global_model.load_state_dict(avg_model.state_dict())
             test_loss, accuracy = test(self.global_model, self.test_dataloader, self.device)
-            print(f"Round {r+1}, Test Loss: {test_loss}, Accuracy: {accuracy}")
+            logging.info(f"Round {r+1}, Test Loss: {test_loss}, Accuracy: {accuracy}")
 
             if accuracy > best_acc:
                 best_acc = accuracy
@@ -140,7 +153,7 @@ class OnlinePipeline(Pipeline):
             subprocess.Popen(["python", "client.py", str(i+1), str(config_path)])
             # command = f'start cmd.exe /k python client.py {i+1} {config_path}'
             # subprocess.Popen(command, shell=True)
-            print(f"Client {i+1} started")
+            logging.info(f"Client {i+1} started")
         
         # connect client
         self.client_sockets = []
@@ -148,7 +161,7 @@ class OnlinePipeline(Pipeline):
         for _ in range(self.N):
             client_socket, addr = self.server_socket.accept()
             self.client_sockets.append(client_socket)
-            print(f"Connected to client at {addr}")
+            logging.info(f"Connected to client at {addr}")
 
     def send_and_train(self, idx, global_state):
         threads = []
@@ -168,9 +181,9 @@ class OnlinePipeline(Pipeline):
             buffer.seek(0)
             client_socket.sendall(buffer.getvalue())
             client_socket.sendall(b"END")
-            print(f"Send model to client {i}")
+            logging.info(f"Send model to client {i}")
         except socket.error as e:
-            print("Socket error during sending model:", e)
+            logging.error("Socket error during sending model:", e)
 
     def recv_and_merge(self, idx):
         threads = []
@@ -194,7 +207,7 @@ class OnlinePipeline(Pipeline):
         try:
             data = receive_data(client_socket, self.buffer_size)
             if data is None:
-                print("Socket error during receiving client model")
+                logging.error("Socket error during receiving client model")
             
             buffer = io.BytesIO(data)
             buffer.seek(0)
@@ -207,9 +220,9 @@ class OnlinePipeline(Pipeline):
             with self.lock:
                 for avg_param, client_param in zip(self.avg_model.parameters(), client_model.parameters()):
                     avg_param.data += client_param.data
-            print(f"Recv model from client {i}")
+            logging.info(f"Recv model from client {i}")
         except socket.error as e:
-            print("Socket error during receiving client model:", e)
+            logging.error("Socket error during receiving client model:", e)
     
     def train(self):
         super().train()
@@ -220,7 +233,7 @@ class OnlinePipeline(Pipeline):
                 client_socket.sendall(b"FIN")
                 client_socket.close()
             except socket.error as e:
-                print(f"Error sending end signal: {e}")
+                logging.error(f"Error sending end signal: {e}")
     
 def atom_train(model, lr, dataloader, n_epochs, device):
     """
