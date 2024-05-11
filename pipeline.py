@@ -153,7 +153,7 @@ class OnlinePipeline(Pipeline):
             subprocess.Popen(["python", "client.py", str(i+1), str(config_path)])
             # command = f'start cmd.exe /k python client.py {i+1} {config_path}'
             # subprocess.Popen(command, shell=True)
-            logging.info(f"Client {i+1} started")
+            logging.debug(f"Client {i+1} started")
         
         # connect client
         self.client_sockets = []
@@ -161,7 +161,7 @@ class OnlinePipeline(Pipeline):
         for _ in range(self.N):
             client_socket, addr = self.server_socket.accept()
             self.client_sockets.append(client_socket)
-            logging.info(f"Connected to client at {addr}")
+            logging.debug(f"Connected to client at {addr}")
 
     def send_and_train(self, idx, global_state):
         threads = []
@@ -181,7 +181,7 @@ class OnlinePipeline(Pipeline):
             buffer.seek(0)
             client_socket.sendall(buffer.getvalue())
             client_socket.sendall(b"END")
-            logging.info(f"Send model to client {i}")
+            logging.debug(f"Send model to client {i}")
         except socket.error as e:
             logging.error("Socket error during sending model:", e)
 
@@ -220,7 +220,7 @@ class OnlinePipeline(Pipeline):
             with self.lock:
                 for avg_param, client_param in zip(self.avg_model.parameters(), client_model.parameters()):
                     avg_param.data += client_param.data
-            logging.info(f"Recv model from client {i}")
+            logging.debug(f"Recv model from client {i}")
         except socket.error as e:
             logging.error("Socket error during receiving client model:", e)
     

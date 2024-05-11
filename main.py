@@ -12,8 +12,8 @@ if __name__ == "__main__":
 
     if cfg.mode == "offline":
         pipe = OfflinePipeline(cfg)
-        pipe.train()
 
     if cfg.mode == "online":
         pipe = OnlinePipeline(cfg, args.config)
-        pipe.train()
+    
+    pipe.train()
