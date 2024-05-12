@@ -106,10 +106,10 @@ class OfflinePipeline(Pipeline):
 
     def send_and_train(self, idx, global_state):
         client_model = copy.deepcopy(self.model)
-        client_model.load_state_dict(global_state)
 
         # client_i training at data_i
         for i in tqdm(idx):
+            client_model.load_state_dict(global_state)
             dataloader = self.client_dataloaders[i]
             atom_train(client_model, self.lr, dataloader, self.n_epochs, self.device)
             
